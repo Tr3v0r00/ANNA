@@ -71,6 +71,37 @@
             opacity: 1;
         }
 
+        .question-box.completed {
+            background-color: #f1f5f9; /* Slate 100 */
+            border-color: #e2e8f0;
+            box-shadow: none;
+        }
+        
+        @media (hover: hover) {
+            .question-box.completed:hover {
+                transform: translateY(-2px) scale(1.01);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            }
+        }
+
+        .question-box.completed .number-text {
+            opacity: 0.35;
+            background: #94a3b8; /* Slate 400 */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .question-box.completed .check-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .check-icon {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
         /* Hide scrollbar for clean UI but allow scrolling */
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -115,18 +146,29 @@
                         Question goes here?
                     </h2>
                     
-                    <!-- Translation Toggle Button -->
-                    <button id="toggle-translation-btn" class="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center mx-auto space-x-2 focus:outline-none focus:ring-4 focus:ring-indigo-500/30">
-                        <!-- Eye Icon -->
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span>Show Translation</span>
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 mt-8 w-full mx-auto">
+                        <!-- Translation Toggle Button -->
+                        <button id="toggle-translation-btn" class="w-full sm:flex-1 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-indigo-500/30">
+                            <!-- Eye Icon -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>Translation</span>
+                        </button>
+
+                        <!-- Mark Completed Button -->
+                        <button id="mark-completed-btn" class="w-full sm:flex-1 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-emerald-500/30">
+                            <!-- Check Icon -->
+                            <svg id="completed-btn-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span id="completed-btn-text">Mark Complete</span>
+                        </button>
+                    </div>
 
                     <!-- Translation Container -->
-                    <div id="translation-container" class="mt-8 p-6 md:p-8 bg-slate-50 rounded-2xl border border-slate-100 hidden opacity-0 transition-opacity duration-300">
+                    <div id="translation-container" class="mt-8 p-6 md:p-8 bg-slate-50 rounded-2xl border border-slate-100 hidden opacity-0 transition-opacity duration-300 text-left">
                         <p class="text-sm text-indigo-500 mb-2 font-bold uppercase tracking-widest">Traditional Chinese</p>
                         <p id="modal-question-zh" class="text-xl md:text-2xl text-slate-700 font-medium leading-relaxed">
                             翻譯會在這裡顯示。
@@ -200,14 +242,30 @@
             const modalQuestionZh = document.getElementById('modal-question-zh');
             const translationContainer = document.getElementById('translation-container');
             const toggleTranslationBtn = document.getElementById('toggle-translation-btn');
+            const markCompletedBtn = document.getElementById('mark-completed-btn');
+            const completedBtnText = document.getElementById('completed-btn-text');
             const closeBtn = document.getElementById('close-modal-btn');
 
             let isTranslationShowing = false;
+            let currentOpenIndex = -1;
+            
+            // Load completed questions from localStorage so progress isn't lost on refresh
+            let completedQuestions = [];
+            try {
+                const saved = localStorage.getItem('englishChallengeCompleted');
+                if (saved) {
+                    completedQuestions = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error("Could not load progress", e);
+            }
+            const completedSet = new Set(completedQuestions);
 
             // Generate the 50 elegant boxes
             for (let i = 0; i < 50; i++) {
                 const box = document.createElement('button');
                 box.type = 'button';
+                box.dataset.index = i; // Store index on the element for easy access
                 
                 // Array of subtle modern gradients for the numbers
                 const gradients = [
@@ -218,15 +276,27 @@
                     'from-cyan-400 to-blue-500'
                 ];
                 const bgClass = gradients[i % gradients.length];
+                
+                // Check if this specific box was already completed in a previous session
+                const isCompleted = completedSet.has(i);
+                const completedClass = isCompleted ? 'completed' : '';
 
-                box.className = `question-box bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/60 flex items-center justify-center relative overflow-hidden group focus:outline-none focus:ring-4 focus:ring-indigo-500/20`;
+                box.className = `question-box ${completedClass} bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200/60 flex items-center justify-center relative overflow-hidden group focus:outline-none focus:ring-4 focus:ring-indigo-500/20`;
                 
                 // Added pointer-events-none to inner elements so they don't block the button's tap area
+                // Included a hidden checkmark that appears when the 'completed' class is active
                 box.innerHTML = `
                     <div class="absolute inset-0 bg-gradient-to-br ${bgClass} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-300 pointer-events-none"></div>
-                    <span class="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-br ${bgClass} pointer-events-none">
+                    
+                    <span class="number-text text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-br ${bgClass} pointer-events-none transition-colors duration-300">
                         ${i + 1}
                     </span>
+                    
+                    <div class="check-icon absolute top-3 right-3 md:top-4 md:right-4 text-emerald-500 pointer-events-none bg-emerald-100 rounded-full p-1 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
                 `;
 
                 box.addEventListener('click', (e) => {
@@ -238,6 +308,7 @@
 
             // Function to open modal
             function openModal(index) {
+                currentOpenIndex = index;
                 const currentQuestionData = questionsData[index];
                 
                 // Set content
@@ -257,9 +328,11 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
-                    <span>Show Translation</span>
+                    <span>Translation</span>
                 `;
-                toggleTranslationBtn.className = "w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center mx-auto space-x-2 focus:outline-none focus:ring-4 focus:ring-indigo-500/30";
+                toggleTranslationBtn.className = "w-full sm:flex-1 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-indigo-500/30";
+
+                updateCompletedModalButton(index);
 
                 // Show modal with animation
                 modal.style.display = "flex";
@@ -308,6 +381,56 @@
                         <span>Show Translation</span>
                     `;
                     toggleTranslationBtn.className = "w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center mx-auto space-x-2 focus:outline-none focus:ring-4 focus:ring-indigo-500/30";
+                }
+            });
+
+            function updateCompletedModalButton(index) {
+                if (completedSet.has(index)) {
+                    // Already completed state
+                    markCompletedBtn.className = "w-full sm:flex-1 px-6 py-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-lg rounded-2xl transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-slate-500/30";
+                    completedBtnText.textContent = "Completed";
+                    markCompletedBtn.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'; // X icon (to undo)
+                } else {
+                    // Not completed state
+                    markCompletedBtn.className = "w-full sm:flex-1 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold text-lg rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-4 focus:ring-emerald-500/30";
+                    completedBtnText.textContent = "Mark Complete";
+                    markCompletedBtn.querySelector('svg').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />'; // Check icon
+                }
+            }
+
+            markCompletedBtn.addEventListener('click', () => {
+                if (currentOpenIndex === -1) return;
+
+                // Toggle logic
+                if (completedSet.has(currentOpenIndex)) {
+                    completedSet.delete(currentOpenIndex);
+                } else {
+                    completedSet.add(currentOpenIndex);
+                }
+
+                // Save to localStorage
+                try {
+                    localStorage.setItem('englishChallengeCompleted', JSON.stringify(Array.from(completedSet)));
+                } catch (e) {
+                    console.error("Could not save progress", e);
+                }
+
+                // Update the grid box visually
+                const box = document.querySelector(`.question-box[data-index="${currentOpenIndex}"]`);
+                if (box) {
+                    if (completedSet.has(currentOpenIndex)) {
+                        box.classList.add('completed');
+                    } else {
+                        box.classList.remove('completed');
+                    }
+                }
+
+                // Update the button inside the modal to reflect the new state
+                updateCompletedModalButton(currentOpenIndex);
+                
+                // Optional: Auto-close modal after marking complete (giving a tiny delay so they see the button change)
+                if (completedSet.has(currentOpenIndex)) {
+                    setTimeout(closeModal, 400); 
                 }
             });
 
